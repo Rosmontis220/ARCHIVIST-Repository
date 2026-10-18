@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="ARCHIVIST REPOSITORY：档案文明的档案库——REVIEW、TRADE 等记录的留档与阅读入口。">
+  <meta name="description" content="ARCHIVIST REPOSITORY：档案文明留档处——ABANDON / RETAIN / GROUP / TRADE / REVIEW 五系的网页可玩版本、随档下载与外部入口。">
   <link rel="icon" type="image/jpeg" href="resources/images/avatar_archivist.jpg">
   <link rel="preload" href="resources/fonts/novecento-wide-bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="resources/fonts/bender.woff2" as="font" type="font/woff2" crossorigin>
@@ -108,7 +108,7 @@
     html { scrollbar-width: none; }
     html::-webkit-scrollbar { width: 0; height: 0; }
 
-    /* 未进入档案库前只锁纵向滚动，横向始终裁剪 */
+    /* 未进入留档处前只锁纵向滚动，横向始终裁剪 */
     html.scroll-locked,
     html.scroll-locked body {
       height: 100%;
@@ -1938,7 +1938,7 @@
   <div class="boot-side">
     <p class="boot-logo"><span class="boot-mark" aria-hidden="true">◈</span>ARCHIVIST</p>
     <img class="boot-bgimg" id="boot-bgimg" src="resources/images/avatar_archivist.jpg" alt="" aria-hidden="true">
-    <p class="boot-slogan">Archivist Repository // 档案文明的档案库</p>
+    <p class="boot-slogan">Archivist Repository // 档案文明留档处</p>
   </div>
   <div class="boot-track-v" aria-hidden="true"><span id="boot-fill-v"></span></div>
   <div class="boot-track-h" aria-hidden="true"><span id="boot-fill"></span></div>
@@ -2001,10 +2001,10 @@
 <main class="page locked" id="page">
   <section class="module" aria-label="档案简介">
     <header class="hero">
-    <div class="kicker">Archivist Repository // 档案文明档案库</div>
+    <div class="kicker">Archivist Repository // 档案文明留档处</div>
     <h1><span class="h1-main" data-decrypt="ARCHIVIST">ARCHIVIST</span><span class="h1-sub" data-decrypt="REPOSITORY">REPOSITORY</span></h1>
     <p class="hero-sub">
-      档案文明的留档站：REVIEW 与 TRADE 的可玩版本、留存与撤回的记录、随档文件下载，以及相关外部入口。框架阶段，模块陆续入库中。
+      档案文明留档处：ABANDON、RETAIN、GROUP、TRADE、REVIEW 五系的网页可玩版本与随档下载，以及相关外部入口。
     </p>
     <div class="status-line">
       <span class="status-dot" aria-hidden="true"></span>
@@ -2055,10 +2055,18 @@
     <div class="module-main">
     <div class="series-head">
       <h2 class="series-name"><span class="no">02</span><span class="series-title">RETAIN</span></h2>
-      <span class="series-count">0 RECORDS</span>
+      <span class="series-count">1 RECORD</span>
     </div>
     <div class="card-grid">
-      <!-- 卡片入库后放这里：$n 模块待归档 -->
+      <a href="archive/retain/index.html" class="entry-card">
+        <div class="card-kicker">RETAIN // THRESHOLD</div>
+        <h3 class="card-title">THRESHOLD</h3>
+        <p class="card-desc">
+          v0 · 原 macOS 版（Merger/THRESHOLD）<br>
+          浏览器直接游玩，无需安装
+        </p>
+        <div class="card-enter">Open Record <span>→</span></div>
+      </a>
     </div>
     </div>
   </section>
@@ -2067,10 +2075,18 @@
     <div class="module-main">
     <div class="series-head">
       <h2 class="series-name"><span class="no">03</span><span class="series-title">GROUP</span></h2>
-      <span class="series-count">0 RECORDS</span>
+      <span class="series-count">1 RECORD</span>
     </div>
     <div class="card-grid">
-      <!-- 卡片入库后放这里：$n 模块待归档 -->
+      <a href="archive/group/index.html" class="entry-card">
+        <div class="card-kicker">GROUP // UNDO</div>
+        <h3 class="card-title">GROUP · 撤销版</h3>
+        <p class="card-desc">
+          v0 · 含撤销功能版本<br>
+          浏览器直接游玩，无需安装
+        </p>
+        <div class="card-enter">Open Record <span>→</span></div>
+      </a>
     </div>
     </div>
   </section>
@@ -2131,10 +2147,57 @@
     <div class="module-main">
     <div class="series-head">
       <h2 class="series-name"><span class="no">07</span><span class="series-title">MISC</span></h2>
-      <span class="series-count">0 RECORDS</span>
+      <span class="series-count">8 LINKS</span>
     </div>
     <div class="card-grid">
-      <!-- 卡片入库后放这里：$n 模块待归档 -->
+      <a href="https://space.bilibili.com/3493126603803061" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">BILIBILI // XIKM HLQA ONYIEN</div>
+        <h3 class="card-title">B站 · XIKM HLQA ONYIEN</h3>
+        <p class="card-desc">space.bilibili.com/3493126603803061</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://m.douyin.com/share/user/MS4wLjABAAAAFsc9Uu7dbUOhlt6ndMmZ3qENY2Vtf5-E1vQQ6sGt4YcvVmTaj6nB3_Xt_uQLPAvl" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">DOUYIN // VHQ-4K/19</div>
+        <h3 class="card-title">抖音 · VHQ-4K/19</h3>
+        <p class="card-desc">分享主页链接</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://docs.qq.com/doc/DZURVVXJkS1NZWFNq" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">TENCENT DOCS // PUZZLE</div>
+        <h3 class="card-title">XIKM HLQA ONYIEN 解谜</h3>
+        <p class="card-desc">腾讯文档</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://docs.qq.com/sheet/DVWpFakpIVmFSZkV1" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">TENCENT DOCS // POSTAL TERMINAL</div>
+        <h3 class="card-title">邮路终端解谜</h3>
+        <p class="card-desc">腾讯文档</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://space.bilibili.com/1239867708" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">BILIBILI // SILVERFISH_0</div>
+        <h3 class="card-title">B站 · Silverfish_0</h3>
+        <p class="card-desc">space.bilibili.com/1239867708</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://www.mistarg.cn/" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">FORUM // MISTARG</div>
+        <h3 class="card-title">迷雾论坛</h3>
+        <p class="card-desc">www.mistarg.cn</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://qm.qq.com/q/EICZzM2KTC" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">QQ GROUP</div>
+        <h3 class="card-title">QQ 群链接</h3>
+        <p class="card-desc">qm.qq.com/q/EICZzM2KTC</p>
+        <div class="card-enter">Open Link <span>↗</span></div>
+      </a>
+      <a href="https://archive.rosmontis220.top/" class="entry-card" target="_blank" rel="noopener">
+        <div class="card-kicker">FRIEND LINK // SILVERFISH_0-ARCHIVE</div>
+        <h3 class="card-title">SILVERFISH_0 档案站</h3>
+        <p class="card-desc">archive.rosmontis220.top · 友链</p>
+        <div class="card-enter" style="color:var(--ef-yellow);font-weight:700">FRIEND LINK <span>↗</span></div>
+      </a>
     </div>
     </div>
   </section>

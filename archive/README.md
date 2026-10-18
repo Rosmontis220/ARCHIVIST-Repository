@@ -14,6 +14,8 @@
 - `abandon/form/` —— ABANDON · FORM v0（原 macOS 版，单文件 HTML）
 - `abandon/order/` —— ABANDON · ORDER v0（原 Windows 版，单文件 HTML）
 - `abandon/witness/` —— ABANDON · WITNESS v0（Android **原生**应用，不是网页转包；内容为 NativeActivity 渲染的解谜玩法，只能下载 APK 安装）
+- `retain/` —— RETAIN · THRESHOLD v0（原 macOS 版，index.html + merge_state.js）
+- `group/` —— GROUP · 撤销版 v0（单文件 HTML，底部含撤销工具条）
 - `review-web/` —— REVIEW 网页版（54.6MB）
 - `trade-web/` —— TRADE 网页版（44.1MB）
 

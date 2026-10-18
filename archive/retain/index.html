@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>THRESHOLD</title>
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020202;color:#e9e9e9;font-family:Menlo,Monaco,"Courier New",monospace}
+#wrap{position:fixed;inset:0;display:grid;place-items:center;background:#020202}
+canvas{width:min(100vw,177.777vh);height:min(56.25vw,100vh);background:#000;image-rendering:pixelated;image-rendering:crisp-edges;box-shadow:0 0 80px #000}
+#hud{position:fixed;left:14px;top:12px;font-size:12px;letter-spacing:1px;color:#d0d0d0;text-shadow:0 2px 2px #000;pointer-events:none}
+#help{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.7px;color:#aaa;background:rgba(0,0,0,.52);border:1px solid #333;padding:6px 9px;pointer-events:none;white-space:nowrap}
+#overlay{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.90);padding:18px;box-sizing:border-box}
+#panel{width:min(900px,92vw);max-height:88vh;overflow:auto;border:1px solid #555;background:#070707;padding:22px;box-sizing:border-box;box-shadow:0 0 60px #000;font-size:15px;line-height:1.62}
+#panel h1,#panel h2{font-weight:normal;letter-spacing:2px;margin:0 0 16px}
+#panel h1{font-size:22px}#panel h2{font-size:16px;color:#bbb}
+#panel input{width:100%;box-sizing:border-box;background:#000;border:1px solid #666;color:#fff;padding:12px;font:inherit;text-transform:uppercase;letter-spacing:2px;margin:10px 0}
+#panel button{background:#0d0d0d;color:#eee;border:1px solid #777;padding:10px 15px;margin:8px 8px 0 0;font:inherit;cursor:pointer}
+#panel button:hover{background:#1a1a1a}
+.line{padding:10px 0;border-bottom:1px solid #171717}.speaker{display:block;font-size:12px;letter-spacing:1.4px;color:#777;margin-bottom:4px}.wen .speaker{color:#9ca6ad}.god .speaker{color:#b9ad97}.direct{border-left:2px solid #888;padding-left:14px}.system{color:#8d8d8d;letter-spacing:1px}.choice{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}.danger{border-color:#aaa!important}.small{font-size:12px;color:#888}.mail{white-space:pre-wrap;border:1px solid #444;background:#000;padding:14px;color:#dcdcdc;line-height:1.45}.err{min-height:1.4em;color:#bbb;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="640" height="360"></canvas></div>
+<div id="hud"></div><div id="help">W/S MOVE · A/D STRAFE · ←/→ TURN · SHIFT RUN · R RESTART LEVEL</div>
+<div id="overlay"><div id="panel"></div></div>
+<script src="merge_state.js"></script>
+<script>
+(()=>{'use strict';
+const c=document.getElementById('game'),ctx=c.getContext('2d',{alpha:false}),hud=document.getElementById('hud'),help=document.getElementById('help'),overlay=document.getElementById('overlay'),panel=document.getElementById('panel');ctx.imageSmoothingEnabled=false;
+const MW=23,MH=23,FOV=Math.PI/3,VIEW_W=320,VIEW_H=180,SCALE=2;
+const EXPECTED_HASH=0x94ad3742>>>0;
+const MERGE=window.MERGE_STATE||{datKey:'UNSET',digest:'UNSET',glyphOrder:'UNSET'};
+const SAVEKEY='threshold-retained-v000-clean-'+MERGE.datKey;
+let stateData={level:0,completed:[],decision:'',dialogue:false,finalPassword:''};try{Object.assign(stateData,JSON.parse(localStorage.getItem(SAVEKEY)||'{}'));}catch(e){}
+function save(){try{localStorage.setItem(SAVEKEY,JSON.stringify(stateData));}catch(e){}}
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h>>>0;}
+function rng(seed){let s=seed>>>0;return()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return (s>>>0)/4294967296;}}
+const defs=[
+ {pts:[[4,4],[18,4],[18,7],[6,11],[5,14],[5,18],[18,18]]},
+ {pts:[[5,4],[18,4],[18,7],[9,9],[18,11],[18,14],[8,17],[18,18]]},
+ {pts:[[8,7],[13,4],[13,18],[8,18],[18,18]]},
+ {pts:[[4,4],[18,4],[16,7],[13,11],[10,15],[8,18]]},
+ {pts:[[8,4],[15,4],[18,7],[18,15],[15,18],[7,18],[4,15],[4,7],[7,4]]},
+ {pts:[[18,4],[5,4],[5,10],[15,10],[18,12],[18,16],[15,18],[5,18]]}
+];
+function key(x,y){return x+','+y}
+function carveSegment(a,b,out,set){let x=a[0],y=a[1],tx=b[0],ty=b[1],toggle=0;const add=()=>{const k=key(x,y);if(!set.has(k)){set.add(k);out.push([x,y]);}};add();while(x!==tx||y!==ty){const dx=tx-x,dy=ty-y;if(dx!==0&&dy!==0){if(toggle++%2===0)x+=Math.sign(dx);else y+=Math.sign(dy);}else if(dx!==0)x+=Math.sign(dx);else y+=Math.sign(dy);add();}}
+function buildLevel(def,idx){const map=Array.from({length:MH},()=>Array(MW).fill(1)),route=[],routeSet=new Set();for(let i=0;i<def.pts.length-1;i++)carveSegment(def.pts[i],def.pts[i+1],route,routeSet);for(const [x,y] of route)map[y][x]=0;const start=route[0],exit=route[route.length-1];map[exit[1]][exit[0]]=2;return{map,route,start,exit};}
+const levels=defs.map(buildLevel);
+let levelIndex=Math.max(0,Math.min(5,stateData.level||0)),level=levels[levelIndex],px=0,py=0,ang=0,keys=new Set(),last=performance.now(),transitionUntil=0,started=false;
+function resetPlayer(){level=levels[levelIndex];px=level.start[0]+.5;py=level.start[1]+.5;const p0=level.route[0],p1=level.route[Math.min(3,level.route.length-1)];ang=Math.atan2(p1[1]-p0[1],p1[0]-p0[0]);}
+resetPlayer();
+addEventListener('keydown',e=>{const kk=e.key.toLowerCase();keys.add(kk);if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();if(kk==='r'&&started&&overlay.style.display!=='grid')resetPlayer();if(stateData.decision&&overlay.style.display!=='grid'&&kk==='d')downloadDialoguePdf(stateData.decision);if(stateData.decision&&overlay.style.display!=='grid'&&kk==='m')downloadText('RETURN_MAIL.txt',mailTemplate(stateData.decision));});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+function cell(x,y){const ix=Math.floor(x),iy=Math.floor(y);if(ix<0||iy<0||ix>=MW||iy>=MH)return 1;return level.map[iy][ix];}
+function canMove(x,y){const r=.18;return cell(x-r,y-r)!==1&&cell(x+r,y-r)!==1&&cell(x-r,y+r)!==1&&cell(x+r,y+r)!==1;}
+function move(dt){let f=0,s=0,turn=0;if(keys.has('w')||keys.has('arrowup'))f++;if(keys.has('s')||keys.has('arrowdown'))f--;if(keys.has('a'))s--;if(keys.has('d'))s++;if(keys.has('arrowleft'))turn--;if(keys.has('arrowright'))turn++;ang+=turn*1.8*dt;let sp=(keys.has('shift')?2.7:1.65)*dt;let nx=px+(Math.cos(ang)*f+Math.cos(ang+Math.PI/2)*s)*sp,ny=py+(Math.sin(ang)*f+Math.sin(ang+Math.PI/2)*s)*sp;if(canMove(nx,py))px=nx;if(canMove(px,ny))py=ny;
+ const dx=px-(level.exit[0]+.5),dy=py-(level.exit[1]+.5);if(dx*dx+dy*dy<.18)finishLevel();}
+function castRay(rayAng){const dirX=Math.cos(rayAng),dirY=Math.sin(rayAng);let mapX=Math.floor(px),mapY=Math.floor(py);const deltaX=Math.abs(1/(dirX||1e-8)),deltaY=Math.abs(1/(dirY||1e-8));let stepX,stepY,sideX,sideY;if(dirX<0){stepX=-1;sideX=(px-mapX)*deltaX}else{stepX=1;sideX=(mapX+1-px)*deltaX}if(dirY<0){stepY=-1;sideY=(py-mapY)*deltaY}else{stepY=1;sideY=(mapY+1-py)*deltaY}let side=0,hit=1,tile=1;for(let i=0;i<64;i++){if(sideX<sideY){sideX+=deltaX;mapX+=stepX;side=0}else{sideY+=deltaY;mapY+=stepY;side=1}tile=(level.map[mapY]&&level.map[mapY][mapX]!==undefined)?level.map[mapY][mapX]:1;if(tile===1){hit=1;break;}if(tile===2){/* exit is traversable; portal drawn separately */}}
+ let dist=side===0?(mapX-px+(1-stepX)/2)/(dirX||1e-8):(mapY-py+(1-stepY)/2)/(dirY||1e-8);return{dist:Math.max(.001,dist),side};}
+function drawWorld(){const bg=ctx.createLinearGradient(0,0,0,VIEW_H*SCALE);bg.addColorStop(0,'#020202');bg.addColorStop(.49,'#0d0d0d');bg.addColorStop(.5,'#111');bg.addColorStop(1,'#050505');ctx.fillStyle=bg;ctx.fillRect(0,0,640,360);
+ for(let i=0;i<VIEW_W;i++){const camera=(i/VIEW_W-.5)*FOV,ra=ang+camera,res=castRay(ra),correct=res.dist*Math.cos(camera),h=Math.min(VIEW_H,(VIEW_H/correct)*.86),fog=Math.max(0,1-correct/13),base=res.side?115:145,v=Math.floor(25+(base-25)*fog);ctx.fillStyle=`rgb(${v},${v},${v})`;ctx.fillRect(i*SCALE,(VIEW_H-h)/2*SCALE,SCALE,h*SCALE);}
+ // draw exit as a pale vertical slit when in view and not occluded
+ const ex=level.exit[0]+.5-px,ey=level.exit[1]+.5-py,ed=Math.hypot(ex,ey),ea=Math.atan2(ey,ex);let diff=Math.atan2(Math.sin(ea-ang),Math.cos(ea-ang));if(Math.abs(diff)<FOV*.52&&ed<8){const sx=(.5+diff/FOV)*640,hh=Math.min(240,240/Math.max(.7,ed));ctx.fillStyle=`rgba(235,235,235,${Math.max(.18,1-ed/9)})`;ctx.fillRect(sx-3,180-hh/2,6,hh);}
+ // grain
+ ctx.fillStyle='rgba(0,0,0,.11)';for(let i=0;i<240;i++)ctx.fillRect((Math.random()*640)|0,(Math.random()*360)|0,2,2);
+ ctx.fillStyle='#aaa';ctx.fillRect(319,178,2,4);ctx.fillRect(318,179,4,2);
+ hud.textContent=`THRESHOLD   DAT ${MERGE.datKey}`;
+}
+function finishLevel(){if(transitionUntil)return;if(!stateData.completed.includes(levelIndex))stateData.completed.push(levelIndex);save();transitionUntil=performance.now()+1100;}
+function drawTransition(){ctx.fillStyle='#030303';ctx.fillRect(0,0,640,360);ctx.fillStyle='#8f8f8f';ctx.font='14px Menlo,Monaco,monospace';ctx.textAlign='center';ctx.fillText('RECORD RETAINED.',320,174);}
+function nextAfterTransition(){transitionUntil=0;if(levelIndex===5){stateData.level=5;save();showPassword();return;}levelIndex++;stateData.level=levelIndex;save();resetPlayer();}
+function showIntro(){overlay.style.display='grid';panel.innerHTML=`<h1>THRESHOLD</h1><h2>AN ASSEMBLED EVENT</h2><p>Three projections agreed closely enough to produce this executable form.</p><p class="system">FORM / RETAINED<br>ORDER / RETAINED<br>WITNESS / RETAINED<br>DAT_KEY / ${MERGE.datKey}</p><p>No map will be supplied.</p><button id="begin">ENTER</button>`;document.getElementById('begin').onclick=()=>{overlay.style.display='none';started=true;help.style.display='block';resetPlayer();};}
+function showPassword(){help.style.display='none';overlay.style.display='grid';panel.innerHTML=`<h1>RECORDS RETAINED</h1><p class="system"><b>THE PASSAGE IN THE BIBLE.</b></p><input id="pw" autocomplete="off" placeholder="FINAL PASSWORD"><div class="err" id="err"></div><button id="unlock">RETAIN DIALOGUE</button>`;document.getElementById('unlock').onclick=()=>{const v=(document.getElementById('pw').value||'').replace(/\D/g,'');if(fnv(v)!==EXPECTED_HASH){document.getElementById('err').textContent='THE NUMBERS DO NOT AGREE.';return;}stateData.dialogue=true;stateData.finalPassword=v;save();showDialogue();};}
+const dialogue=[
+ ['wen','WEN ZHOU','You asked me to come alone.'],
+ ['god','THE OTHER','I asked thee naught. Thou camest because the door was made possible.'],
+ ['wen','WEN ZHOU','That sounds like the kind of distinction people here enjoy making.'],
+ ['god','THE OTHER','This place enjoyeth nothing. Men bring enjoyment, fear, order, and names with them.'],
+ ['wen','WEN ZHOU','Then let me start with a name. Is this place really the Archive?'],
+ ['god','THE OTHER','Archive is a word thy kind hath laid upon a function it cannot behold whole.'],
+ ['wen','WEN ZHOU','And the rooms? The shelves? The doors?'],
+ ['god','THE OTHER','Thy thought requireth walls, and so walls are granted. Thy hands require pages, and so pages are granted. Mistake not the mercy for the thing itself.'],
+ ['wen','WEN ZHOU','Who built it?'],
+ ['god','THE OTHER','No hand raised it. No council founded it. No first Archivist signed its beginning.'],
+ ['wen','WEN ZHOU','Everything has a beginning.'],
+ ['god','THE OTHER','Everything within thy manner of time requireth one. Thou hast carried that law too far.'],
+ ['wen','WEN ZHOU','Then explain time here. I have three records of the same afternoon. In one I arrived late. In one I never arrived. In one I was already working before I left home.'],
+ ['god','THE OTHER','And why must one devour the others?'],
+ ['wen','WEN ZHOU','Because only one of them can have happened.'],
+ ['god','THE OTHER','Within one human life, that rule is useful. Within the Archive, usefulness is not sovereignty.'],
+ ['wen','WEN ZHOU','So all three are true?'],
+ ['god','THE OTHER','All three are retained. Truth and retention are not the same word. Yet neither is retention falsehood.'],
+ ['wen','WEN ZHOU','That is not an answer.'],
+ ['god','THE OTHER','It is the answer thy question permiteth. Time here is not a road beneath thy feet. It is relation: what may precede, what may answer, what may return, what may still bear witness after another history hath erased it.'],
+ ['wen','WEN ZHOU','So an event can be later than its consequence.'],
+ ['god','THE OTHER','Later to whom?'],
+ ['wen','WEN ZHOU','To me.'],
+ ['god','THE OTHER','Then say so. The error beginneth when a man mistaketh his clock for the law of all things.'],
+ ['wen','WEN ZHOU','You are speaking English.'],
+ ['god','THE OTHER','Nay. Thou hearest English.'],
+ ['wen','WEN ZHOU','That is not the same thing.'],
+ ['god','THE OTHER','No tongue passeth from me unto thee. Meaning entereth; thy mind clotheth it in that speech which it may bear.'],
+ ['wen','WEN ZHOU','If a Chinese Archivist were standing here?'],
+ ['god','THE OTHER','Then would the raiment differ, though the body beneath were one. As water taketh the vessel, so doth meaning take the language of him that receiveth it.'],
+ ['wen','WEN ZHOU','So when records quote a god in Latin, Chinese, English...'],
+ ['god','THE OTHER','They quote the hearer. Never mistake the garment for my voice.'],
+ ['wen','WEN ZHOU','That explains why there is never a clean audio source.'],
+ ['god','THE OTHER','There is no sound for thee to clean.'],
+ ['wen','WEN ZHOU','The Archive cannot record you.'],
+ ['god','THE OTHER','It cannot retain me. It retaineth what remaineth where I have passed.'],
+ ['wen','WEN ZHOU','Me, for example.'],
+ ['god','THE OTHER','Aye. Thy residue may be kept. Thy questions. Thy altered memory. The places in thee where one history no longer sufficeth.'],
+ ['wen','WEN ZHOU','That is what becoming an Archivist does?'],
+ ['god','THE OTHER','Archivist is another of thy names. The work asketh that thou hold things which ought not, by ordinary law, to stand together. In time, the holder is shaped by that which he holdeth.'],
+ ['wen','WEN ZHOU','They have called that becoming a demigod.'],
+ ['god','THE OTHER','Half-god meaneth not half of a god. Half remaineth among men; half hath become answerable to what is retained.'],
+ ['wen','WEN ZHOU','Are there really two of you?'],
+ ['god','THE OTHER','Ye number us twain because two pressures are what thy records have learned to endure. Whether the count be truth or mercy, I shall not settle for thee.'],
+ ['wen','WEN ZHOU','The other one deals with Return.'],
+ ['god','THE OTHER','The other regardeth that which cometh again, though the shore that receiveth it be not the shore that sent it.'],
+ ['wen','WEN ZHOU','And you?'],
+ ['god','THE OTHER','I regard that which may be borne by more than one witness without being made one lie.'],
+ ['wen','WEN ZHOU','The distributed observations.'],
+ ['god','THE OTHER','Thy phrase is small, yet serviceable. One mind breaketh. Several may divide the weight.'],
+ ['wen','WEN ZHOU','Is that why you made the game?'],
+ ['god','THE OTHER','I made a rule. Your machines bestowed upon it rooms, keys, crude light, and play.'],
+ ['wen','WEN ZHOU','ABANDON.'],
+ ['god','THE OTHER','A name found at the boundary. It serveth more than one abandonment.'],
+ ['wen','WEN ZHOU','And ADR? The Ashen Day Recension. What exactly is it?'],
+ ['god','THE OTHER','Not exactly a book.'],
+ ['wen','WEN ZHOU','I knew you were going to say that.'],
+ ['god','THE OTHER','Then thy employment hath taught thee something.'],
+ ['wen','WEN ZHOU','What is it, then?'],
+ ['god','THE OTHER','A recension made where no final edition may exist. It gathereth survivals of a day that doth not agree with itself. The volume men handle is a skin fitted to human reading.'],
+ ['wen','WEN ZHOU','Who wrote it?'],
+ ['god','THE OTHER','Many hands may leave marks upon a skin. Ask instead what required the skin to be made.'],
+ ['wen','WEN ZHOU','Does ADR belong to the Archive?'],
+ ['god','THE OTHER','It is retained by the Archive. Belonging is a poorer relation.'],
+ ['wen','WEN ZHOU','Does it belong to either of you?'],
+ ['god','THE OTHER','No. Yet both have cast consequence upon what it containeth.'],
+ ['wen','WEN ZHOU','Why was I given it?'],
+ ['god','THE OTHER','Because thou couldst not finish it alone.'],
+ ['wen','WEN ZHOU','That sounds backwards.'],
+ ['god','THE OTHER','Thou wert useful because thy insufficiency required other witnesses. A perfect solitary reader would have closed a door that needed to remain open.'],
+ ['wen','WEN ZHOU','So I was chosen because I needed help.'],
+ ['god','THE OTHER','Chosen is thy word. Suitable is nearer.'],
+ ['wen','WEN ZHOU','There is someone else here, isn’t there?'],
+ ['god','THE OTHER','Not here as thou meanest here.'],
+ ['wen','WEN ZHOU','You keep looking past me.'],
+ ['god','THE OTHER','I possess no eyes with which to look.'],
+ ['wen','WEN ZHOU','You know what I mean.'],
+ ['god','THE OTHER','Aye. There are hearers for whom this residue hath not yet become present.'],
+ ['wen','WEN ZHOU','People in the future?'],
+ ['god','THE OTHER','Future is again thy word. They stand beyond the present arrangement of this record. That sufficeth.'],
+ ['wen','WEN ZHOU','If they recover this conversation, what are they supposed to do?'],
+ ['god','THE OTHER','Supposed? Nothing. Qualification is not command.'],
+ ['wen','WEN ZHOU','Qualification for what?'],
+ ['god','THE OTHER','Thou knowest.'],
+ ['wen','WEN ZHOU','No. Say it for them.'],
+ ['god','THE OTHER','Then cease speaking as though this were only thy conversation.'],
+ ['system','RECORD','WEN ZHOU REMAINS PRESENT. ADDRESS VECTOR CHANGES.'],
+ ['god','THE OTHER','Ye who have restored these words: ye joined Form, Order, and Witness; ye agreed upon one seal; ye crossed where no single projection could cross alone.'],
+ ['god','THE OTHER','This is sufficient for the Archive to recognize a candidacy. Not employment. Not safety. Candidacy.'],
+ ['wen','WEN ZHOU','You are inviting them here.'],
+ ['god','THE OTHER','I offer no invitation. The way may now answer if they ask it to.'],
+ ['god','THE OTHER','Ye are qualified to approach the Archive as prospective Archivists. Know what that meaneth before ye answer: an Archivist may remember what his world hath ceased to contain. A name may remain when the life attached to it hath changed. Time may cease to agree with itself around the keeper.'],
+ ['wen','WEN ZHOU','And they can refuse.'],
+ ['god','THE OTHER','Aye. Refusal also is a retained act.'],
+ ['wen','WEN ZHOU','Then ask them clearly.'],
+ ['god','THE OTHER','Very well. Ye who solved this record: will ye go to the Archive, or will ye remain upon your present shore?']
+];
+function showDialogue(){help.style.display='none';overlay.style.display='grid';let html=`<h1>DIALOGUE / FULL RETENTION</h1><h2>WEN ZHOU · ARCHIVIST STATUS AT SOURCE: ACTIVE</h2><p class="system">NO DIVINE SUBJECT RETAINED. HUMAN RESIDUE: PARTIAL. SEMANTIC RENDER: LISTENER-DEPENDENT.</p>`;for(const [type,speaker,text] of dialogue){html+=`<div class="line ${type} ${type==='god'&&speaker==='THE OTHER'?'direct':''}"><span class="speaker">${speaker}</span>${text}</div>`;}html+=`<div class="choice"><button class="danger" id="go">GO TO THE ARCHIVE</button><button id="stay">DO NOT GO</button></div><p class="small">This choice will be written into the return specification. It is intended as a story-state decision for the team.</p>`;panel.innerHTML=html;panel.scrollTop=0;document.getElementById('go').onclick=()=>choose('ENTER');document.getElementById('stay').onclick=()=>choose('DECLINE');}
+function mailTemplate(decision){const subject=decision==='ENTER'?'WE WILL CROSS':'WE WILL NOT CROSS';return `TO: [ACTIVE RETURN ADDRESS FROM THE CURRENT PUBLIC RECORD]\nSUBJECT: ${subject}\n\nCOMPOSITE OBSERVER RETURN\nDAT_KEY: ${MERGE.datKey}\nFINAL PASSWORD: ${stateData.finalPassword||'[PASSWORD USED TO OPEN THE DIALOGUE]'}\n\nTEAM NAME: [NAME OR NONE]\nTEAM INTENT: ${decision}\nMEMBER COUNT: [NUMBER]\n\nMEMBERS\n01 / NAME TO BE RETAINED: [NAME OR HANDLE] / INTENT: ${decision}\n02 / NAME TO BE RETAINED: [NAME OR HANDLE] / INTENT: ${decision}\n03 / NAME TO BE RETAINED: [NAME OR HANDLE] / INTENT: ${decision}\n[ADD OR REMOVE LINES AS NEEDED]\n\nDECLARATION\nEvery listed member has seen the team decision above and agrees to have that decision returned as part of this ARG record.\n\nEND RETURN`}
+function downloadText(name,text){const b=new Blob([text],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);}
+
+function asciiPdf(s){return String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/·/g,' / ').replace(/←/g,'<-').replace(/→/g,'->').replace(/[^\x20-\x7E]/g,'?');}
+function pdfEscape(s){return asciiPdf(s).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');}
+function wrapPdfText(text,max=88){const words=asciiPdf(text).split(/\s+/).filter(Boolean),out=[];let line='';for(const w of words){if(w.length>max){if(line){out.push(line);line='';}for(let i=0;i<w.length;i+=max)out.push(w.slice(i,i+max));continue;}const next=line?line+' '+w:w;if(next.length>max){if(line)out.push(line);line=w;}else line=next;}if(line)out.push(line);return out.length?out:[''];}
+function buildDialoguePdfBytes(decision){
+ const label=decision==='ENTER'?'GO TO THE ARCHIVE':'DO NOT GO';
+ const lines=[];
+ lines.push('THRESHOLD / FULL DIALOGUE RETENTION');
+ lines.push('');
+ lines.push('WEN ZHOU - ARCHIVIST STATUS AT SOURCE: ACTIVE');
+ lines.push('NO DIVINE SUBJECT RETAINED.');
+ lines.push('HUMAN RESIDUE: PARTIAL.');
+ lines.push('SEMANTIC RENDER: LISTENER-DEPENDENT.');
+ lines.push('');
+ lines.push(`DIGEST=${MERGE.digest}`);
+ lines.push(`DAT_KEY=${MERGE.datKey}`);
+ lines.push(`GLYPH_ORDER=${MERGE.glyphOrder}`);
+ lines.push(`TEAM_DECISION=${decision}`);
+ lines.push('');
+ lines.push('--- FULL RETENTION ---');
+ lines.push('');
+ for(const [type,speaker,text] of dialogue){
+   const prefix=type==='system'?`[${speaker}]`:`${speaker}:`;
+   const wrapped=wrapPdfText(text,78);
+   lines.push(prefix+' '+wrapped[0]);
+   for(let i=1;i<wrapped.length;i++)lines.push('  '+wrapped[i]);
+   lines.push('');
+ }
+ lines.push('--- CHANGEPOINT ---');
+ lines.push(`DECISION RETAINED: ${label}`);
+ lines.push('Later records may differ according to the returned team decision.');
+ lines.push('This PDF is a locally retained copy of the dialogue recovered by this team.');
+ const maxLines=58,pages=[];for(let i=0;i<lines.length;i+=maxLines)pages.push(lines.slice(i,i+maxLines));
+ const objects=[];const add=o=>{objects.push(o);return objects.length;};
+ const catalogId=add('');const pagesId=add('');const fontId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>');
+ const pageIds=[];
+ for(let p=0;p<pages.length;p++){
+   const body=['BT','/F1 9 Tf','48 752 Td','11 TL'];
+   for(const line of pages[p]){body.push(`(${pdfEscape(line)}) Tj`);body.push('T*');}
+   body.push('ET');
+   const stream=body.join('\n');
+   const contentId=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+   const pageId=add('');pageIds.push(pageId);
+   objects[pageId-1]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+ }
+ objects[catalogId-1]=`<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+ objects[pagesId-1]=`<< /Type /Pages /Kids [${pageIds.map(id=>id+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+ let pdf='%PDF-1.4\n%ABANDON\n',offsets=[0];
+ for(let i=0;i<objects.length;i++){offsets.push(pdf.length);pdf+=`${i+1} 0 obj\n${objects[i]}\nendobj\n`;}
+ const xref=pdf.length;pdf+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+ for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+ pdf+=`trailer\n<< /Size ${objects.length+1} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+ return pdf;
+}
+function downloadDialoguePdf(decision){const pdf=buildDialoguePdfBytes(decision);const blob=new Blob([pdf],{type:'application/pdf'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`FULL_DIALOGUE_${MERGE.datKey}_${decision}.pdf`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);}
+
+function choose(decision){stateData.decision=decision;save();const mail=mailTemplate(decision),label=decision==='ENTER'?'GO':'DO NOT GO';panel.innerHTML=`<h1>DECISION RETAINED: ${label}</h1><p class="system">THIS IS A CHANGEPOINT. LATER RECORDS MAY DIFFER ACCORDING TO THE RETURNED TEAM DECISION.</p><p>Reply by email to the <b>active RETURN address in the current public record</b>. Do not use a deprecated address recovered from old material.</p><p>Use the following specification exactly. “NAME TO BE RETAINED” may be a real name or the stable handle by which that person wants to exist inside the ARG.</p><div class="mail">${mail.replace(/</g,'&lt;')}</div><div class="choice"><button id="mailfile">DOWNLOAD RETURN_MAIL.txt</button><button id="dialoguepdf">DOWNLOAD FULL DIALOGUE.pdf</button><button id="backtitle">CLOSE RECORD</button></div><p class="small">The PDF is generated locally and includes the retained dialogue, DIGEST, DAT_KEY, GLYPH_ORDER, and this team's decision.</p>`;document.getElementById('mailfile').onclick=()=>downloadText('RETURN_MAIL.txt',mail);document.getElementById('dialoguepdf').onclick=()=>downloadDialoguePdf(decision);document.getElementById('backtitle').onclick=()=>{overlay.style.display='none';drawFinalScreen();};}
+function drawFinalScreen(){ctx.fillStyle='#020202';ctx.fillRect(0,0,640,360);ctx.fillStyle='#ddd';ctx.textAlign='center';ctx.font='20px Menlo,Monaco,monospace';ctx.fillText('DECISION RETAINED.',320,132);ctx.fillStyle='#777';ctx.font='13px Menlo,Monaco,monospace';ctx.fillText(stateData.decision==='ENTER'?'THE WAY MAY ANSWER.':'THE PRESENT SHORE REMAINS.',320,164);ctx.fillStyle='#aaa';ctx.font='12px Menlo,Monaco,monospace';ctx.fillText('D - DOWNLOAD FULL DIALOGUE PDF',320,205);ctx.fillText('M - DOWNLOAD RETURN MAIL',320,225);hud.textContent='THRESHOLD / CHANGEPOINT';help.style.display='none';}
+function frame(t){const dt=Math.min(.04,(t-last)/1000);last=t;if(stateData.decision){drawFinalScreen();requestAnimationFrame(frame);return;}if(!started){requestAnimationFrame(frame);return;}if(transitionUntil){drawTransition();if(t>=transitionUntil)nextAfterTransition();requestAnimationFrame(frame);return;}if(overlay.style.display!=='grid'){move(dt);drawWorld();}requestAnimationFrame(frame);}
+if(stateData.dialogue){showDialogue();}else{showIntro();}requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

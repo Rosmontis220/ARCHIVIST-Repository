@@ -1,6 +1,6 @@
 # ARCHIVIST REPOSITORY
 
-档案文明的档案库。框架阶段——骨架照搬 [SILVERFISH_0-Archive](../SILVERFISH_0-Archive)，内容模块陆续入库。
+档案文明留档处。骨架照搬 [SILVERFISH_0-Archive](../SILVERFISH_0-Archive)，内容模块陆续入库。
 
 ## 目录
 

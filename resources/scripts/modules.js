@@ -127,7 +127,7 @@
     else if (mobileQuery.addListener) mobileQuery.addListener(syncNavLayout);
     syncNavLayout();
 
-    /* 进入档案库：解锁后停在首屏，不自动跳到第一个内容模块 */
+    /* 进入留档处：解锁后停在首屏，不自动跳到第一个内容模块 */
     const unlock = () => {
       if (!locked()) return;
       try { sessionStorage.setItem('ar-entry', '1'); } catch (e) { /* storage unavailable */ }
