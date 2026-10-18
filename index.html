@@ -1947,7 +1947,7 @@
 
 <div class="curtain" id="curtain" aria-hidden="true"></div>
 
-<audio id="archive-music" src="resources/music/Soul Sanctum.mp3" loop preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none;" aria-hidden="true"></audio>
+<audio id="archive-music" src="resources/music/Whispering Vaults.mp3" loop preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none;" aria-hidden="true"></audio>
 
 <script src="resources/scripts/sfx-home.js"></script>
 
@@ -1977,8 +1977,8 @@
       <span class="nav-action-icon" aria-hidden="true"><span id="sound-icon">🔇</span></span>
       <span class="toc-label"><span>音量</span></span>
     </button>
-    <button id="theme-toggle" class="nav-action-item" type="button" aria-label="切换日间模式">
-      <span class="nav-action-icon" aria-hidden="true"><span id="theme-icon">🌙</span></span>
+    <button id="theme-toggle" class="nav-action-item" type="button" aria-label="切换夜间模式">
+      <span class="nav-action-icon" aria-hidden="true"><span id="theme-icon">☀️</span></span>
       <span class="toc-label"><span>主题</span></span>
     </button>
   </div>
@@ -2137,44 +2137,69 @@
       <h2 class="series-name"><span class="no">06</span><span class="series-title">DOWNLOAD</span></h2>
       <span class="series-count">4 RECORDS</span>
     </div>
-    <div class="card-grid">
-      <a href="archive/download/west_edge_backup.zip" class="entry-card" download>
-        <div class="card-kicker">DOWNLOAD // ZIP</div>
-        <h3 class="card-title">WEST_EDGE 备份包</h3>
-        <p class="card-desc">
-          west_edge_backup.zip<br>
-          ZIP 压缩包 · 4.45MB
-        </p>
-        <div class="card-enter">Download File <span>↓</span></div>
-      </a>
-      <a href="archive/download/档案文明_面向人类文明的公开介绍集.pdf" class="entry-card" download>
-        <div class="card-kicker">DOWNLOAD // PDF</div>
-        <h3 class="card-title">档案文明公开介绍集</h3>
-        <p class="card-desc">
-          面向人类文明的公开介绍集<br>
-          PDF · 397KB
-        </p>
-        <div class="card-enter">Download File <span>↓</span></div>
-      </a>
-      <a href="archive/download/GOD_档案文明摘要_silverfish_0汉化.pdf" class="entry-card" download>
-        <div class="card-kicker">DOWNLOAD // PDF</div>
-        <h3 class="card-title">GOD 档案文明摘要</h3>
-        <p class="card-desc">
-          silverfish_0 汉化版<br>
-          PDF · 28KB
-        </p>
-        <div class="card-enter">Download File <span>↓</span></div>
-      </a>
-      <a href="archive/download/FULL_DIALOGUE_UNSET_ENTER_汉化_闻舟.pdf" class="entry-card" download>
-        <div class="card-kicker">DOWNLOAD // PDF</div>
-        <h3 class="card-title">FULL DIALOGUE：UNSET ENTER</h3>
-        <p class="card-desc">
-          闻舟汉化版<br>
-          PDF · 12KB
-        </p>
-        <div class="card-enter">Download File <span>↓</span></div>
-      </a>
-    </div>
+      <div class="download-tools" role="search" aria-label="文件下载筛选">
+        <div class="download-filters" role="group" aria-label="按文件类型筛选">
+          <button class="download-filter" type="button" data-download-filter="all" aria-pressed="true">全部</button>
+          <button class="download-filter" type="button" data-download-filter="doc" aria-pressed="false">文档</button>
+          <button class="download-filter" type="button" data-download-filter="archive" aria-pressed="false">压缩包</button>
+        </div>
+        <label class="download-search-wrap">
+          <svg class="download-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5"></circle>
+            <path d="m16 16 4.5 4.5"></path>
+          </svg>
+          <input class="download-search" id="download-search" type="search" aria-label="搜索下载文件" placeholder="搜索文件名、格式或说明" autocomplete="off" spellcheck="false">
+        </label>
+        <span class="download-result-count" id="download-result-count" aria-live="polite">显示 4 / 4 个文件</span>
+      </div>
+      <div class="download-pager" aria-label="文件分页">
+        <button class="download-page-button" id="download-prev" type="button" aria-label="上一页">←</button>
+        <span class="download-page-status" id="download-page-status" aria-live="polite">第 1 / 1 页</span>
+        <button class="download-page-button" id="download-next" type="button" aria-label="下一页">→</button>
+      </div>
+      <div class="card-grid card-grid--clamp2" id="download-grid">
+        <a href="archive/download/west_edge_backup.zip" class="entry-card download-card" data-download-type="archive" data-download-search="west_edge_backup.zip zip 压缩包 WEST_EDGE 备份" download>
+          <div class="card-kicker">FILE // BACKUP</div>
+          <h3 class="card-title">WEST_EDGE 备份包</h3>
+          <p class="card-desc">
+            4.45 MB · zip<br>
+            <span class="card-source">归属：LSBR 解谜文件</span><br>
+            WEST_EDGE 相关资料备份
+          </p>
+          <div class="card-enter">Download <span>↓</span></div>
+        </a>
+        <a href="archive/download/档案文明_面向人类文明的公开介绍集.pdf" class="entry-card download-card" data-download-type="doc" data-download-search="档案文明 面向人类文明的公开介绍集 pdf 文档 公开介绍" download>
+          <div class="card-kicker">FILE // INTRO</div>
+          <h3 class="card-title">档案文明公开介绍集</h3>
+          <p class="card-desc">
+            397 KB · pdf<br>
+            <span class="card-source">归属：档案文明</span><br>
+            面向人类文明的公开介绍集
+          </p>
+          <div class="card-enter">Download <span>↓</span></div>
+        </a>
+        <a href="archive/download/GOD_档案文明摘要_silverfish_0汉化.pdf" class="entry-card download-card" data-download-type="doc" data-download-search="GOD 档案文明摘要 silverfish_0 汉化 pdf 文档" download>
+          <div class="card-kicker">FILE // DIGEST</div>
+          <h3 class="card-title">GOD 档案文明摘要</h3>
+          <p class="card-desc">
+            28 KB · pdf<br>
+            <span class="card-source">归属：档案文明</span><br>
+            silverfish_0 汉化版
+          </p>
+          <div class="card-enter">Download <span>↓</span></div>
+        </a>
+        <a href="archive/download/FULL_DIALOGUE_UNSET_ENTER_汉化_闻舟.pdf" class="entry-card download-card" data-download-type="doc" data-download-search="FULL_DIALOGUE UNSET ENTER 汉化 闻舟 pdf 文档 对话" download>
+          <div class="card-kicker">FILE // DIALOGUE</div>
+          <h3 class="card-title">FULL DIALOGUE：UNSET ENTER</h3>
+          <p class="card-desc">
+            12 KB · pdf<br>
+            <span class="card-source">归属：UNSET ENTER</span><br>
+            闻舟汉化版
+          </p>
+          <div class="card-enter">Download <span>↓</span></div>
+        </a>
+      </div>
+      <p class="download-empty" id="download-empty" role="status">没有匹配的文件 / NO MATCHING FILES</p>
     </div>
   </section>
 
@@ -2260,6 +2285,7 @@
 <script src="resources/scripts/music-lifecycle.js"></script>
    <script src="resources/scripts/decrypt-text.js?v=2"></script>
    <script src="resources/scripts/mobile-carousel.js?v=2"></script>
-  <script src="resources/scripts/home.js"></script>
+   <script src="resources/scripts/home.js"></script>
+   <script src="resources/scripts/downloads.js?v=2"></script>
 </body>
 </html>

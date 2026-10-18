@@ -12,10 +12,10 @@
     const icon = document.getElementById('theme-icon');
     const music = document.getElementById('archive-music');
 
-    const current = () => THEMES.find((t) => root.classList.contains(t)) || 'dark';
+    const current = () => THEMES.find((t) => root.classList.contains(t)) || 'light';
 
     const applyTrack = (theme) => {
-      const file = TRACKS[theme] || TRACKS.dark;
+      const file = TRACKS[theme] || TRACKS.light;
       if (!music || (music.getAttribute('src') || '').indexOf(file) !== -1) return;
       const wasPlaying = !music.paused && !music.muted && window.__archiveSoundAllowed !== false;
       music.setAttribute('src', file);
