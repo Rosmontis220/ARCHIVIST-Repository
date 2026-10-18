@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>ABANDON</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;background:#050505;color:#eee;overflow:hidden;font-family:Menlo,Monaco,"Courier New",monospace}
+  #wrap{position:fixed;inset:0;display:grid;place-items:center;background:#050505}
+  canvas{width:min(100vw,177.777vh);height:min(56.25vw,100vh);image-rendering:pixelated;image-rendering:crisp-edges;background:#000;box-shadow:0 0 70px #000}
+  #hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-size:13px;letter-spacing:1px;color:#c8c8c8;text-shadow:0 1px 0 #000,0 0 12px #000;pointer-events:none;user-select:none;background:rgba(0,0,0,.35);padding:4px 8px;border:1px solid #444}
+  #modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.78)}
+  #panel{width:min(560px,88vw);background:#0a0a0a;border:1px solid #666;padding:18px;box-shadow:0 0 40px #000;font-size:13px;line-height:1.55}
+  #panel h2{font-size:14px;margin:0 0 12px;letter-spacing:2px;font-weight:normal}
+  #panel input{display:block;box-sizing:border-box;width:100%;background:#000;border:1px solid #555;color:#eee;padding:10px;font:inherit;margin:8px 0;text-transform:uppercase}
+  #panel button{background:#111;border:1px solid #777;color:#eee;padding:8px 12px;font:inherit;margin:8px 8px 0 0;cursor:pointer}
+  #panel button:hover{background:#222}
+  #panel .err{color:#aaa;min-height:1.5em;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="320" height="180"></canvas></div>
+<div id="hint">WASD / ARROWS · E / ENTER · Q</div>
+<div id="modal"><div id="panel"></div></div>
+<script>
+(() => {
+'use strict';
+const W=320,H=180, c=document.getElementById('game'),x=c.getContext('2d',{alpha:false});
+x.imageSmoothingEnabled=false;
+const modal=document.getElementById('modal'),panel=document.getElementById('panel');
+const SECRET='ASHEN-DAY//ABANDON//0317';
+const PLATFORM='F';
+const SAVEKEY='abandon-form-v000-public-clean-r1';
+const keys=new Set();
+let pressed=new Set();
+let frame=0,last=performance.now(),state='boot',msg='',msgUntil=0;
+let player={x:157,y:145,w:6,h:8,spd:42};
+let data={shore:false,a1:'',partnerA1:'',partnerPlatform:'',ferry:false,a2:'',a2o:'',a2w:'',glyphOrder:[],archive:false,hidden4:false};
+try{Object.assign(data,JSON.parse(localStorage.getItem(SAVEKEY)||'{}'));}catch(e){}
+function save(){try{localStorage.setItem(SAVEKEY,JSON.stringify(data));}catch(e){}}
+function keyName(e){return e.key.length===1?e.key.toLowerCase():e.key;}
+addEventListener('keydown',e=>{const k=keyName(e);if(!keys.has(k)) pressed.add(k);keys.add(k); if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();});
+addEventListener('keyup',e=>keys.delete(keyName(e)));
+function tap(...ks){return ks.some(k=>pressed.has(k));}
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h>>>0;}
+const RUNE_CODE=['F','A','7','C'];
+function encodeGlyphOrder(seq){if(!Array.isArray(seq)||seq.length!==4||new Set(seq).size!==4)return '';return seq.map(i=>RUNE_CODE[i]).join('');}
+function decodeGlyphOrder(seg){seg=(seg||'').toUpperCase();if(!/^[FA7C]{4}$/.test(seg))return null;const a=[...seg].map(ch=>RUNE_CODE.indexOf(ch));return a.every(i=>i>=0)&&new Set(a).size===4?a:null;}
+function chk(stage,p,payload,runes=''){const body=runes?`${SECRET}|${stage}|${p}|${payload}|${runes}`:`${SECRET}|${stage}|${p}|${payload}`;return (fnv(body)&0xffff).toString(16).padStart(4,'0').toUpperCase();}
+function randomHex8(){let a=new Uint32Array(1); if(crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else a[0]=(Math.random()*0xffffffff)>>>0; return a[0].toString(16).padStart(8,'0').toUpperCase();}
+function makeToken(stage,p,order=[]){const payload=randomHex8();if(stage==='A2'){const runes=encodeGlyphOrder(order);if(!decodeGlyphOrder(runes))throw new Error('A2 requires four distinct retained marks');return `${stage}-${p}-${payload}-${runes}-${chk(stage,p,payload,runes)}`;}return `${stage}-${p}-${payload}-${chk(stage,p,payload)}`;}
+function parseToken(t,stage){t=(t||'').trim().toUpperCase();if(stage==='A1'){const m=t.match(/^A1-([FOW])-([0-9A-F]{8})-([0-9A-F]{4})$/);if(!m||chk('A1',m[1],m[2])!==m[3])return null;return {raw:t,stage:'A1',p:m[1],payload:m[2],runes:'',order:null};}const m=t.match(/^A2-([FOW])-([0-9A-F]{8})-([FA7C]{4})-([0-9A-F]{4})$/);if(!m||!decodeGlyphOrder(m[3])||chk('A2',m[1],m[2],m[3])!==m[4])return null;return {raw:t,stage:'A2',p:m[1],payload:m[2],runes:m[3],order:decodeGlyphOrder(m[3])};}
+
+const PIXEL_FONT={
+' ':['00000','00000','00000','00000','00000','00000','00000'],
+'A':['01110','10001','10001','11111','10001','10001','10001'],
+'B':['11110','10001','10001','11110','10001','10001','11110'],
+'C':['01111','10000','10000','10000','10000','10000','01111'],
+'D':['11110','10001','10001','10001','10001','10001','11110'],
+'E':['11111','10000','10000','11110','10000','10000','11111'],
+'F':['11111','10000','10000','11110','10000','10000','10000'],
+'G':['01111','10000','10000','10111','10001','10001','01111'],
+'H':['10001','10001','10001','11111','10001','10001','10001'],
+'I':['11111','00100','00100','00100','00100','00100','11111'],
+'J':['00111','00010','00010','00010','10010','10010','01100'],
+'K':['10001','10010','10100','11000','10100','10010','10001'],
+'L':['10000','10000','10000','10000','10000','10000','11111'],
+'M':['10001','11011','10101','10101','10001','10001','10001'],
+'N':['10001','10001','11001','10101','10011','10001','10001'],
+'O':['01110','10001','10001','10001','10001','10001','01110'],
+'P':['11110','10001','10001','11110','10000','10000','10000'],
+'Q':['01110','10001','10001','10001','10101','10010','01101'],
+'R':['11110','10001','10001','11110','10100','10010','10001'],
+'S':['01111','10000','10000','01110','00001','00001','11110'],
+'T':['11111','00100','00100','00100','00100','00100','00100'],
+'U':['10001','10001','10001','10001','10001','10001','01110'],
+'V':['10001','10001','10001','10001','10001','01010','00100'],
+'W':['10001','10001','10001','10101','10101','10101','01010'],
+'X':['10001','10001','01010','00100','01010','10001','10001'],
+'Y':['10001','10001','01010','00100','00100','00100','00100'],
+'Z':['11111','00001','00010','00100','01000','10000','11111'],
+'0':['01110','10001','10011','10101','11001','10001','01110'],
+'1':['00100','01100','00100','00100','00100','00100','01110'],
+'2':['01110','10001','00001','00010','00100','01000','11111'],
+'3':['11110','00001','00001','01110','00001','00001','11110'],
+'4':['00010','00110','01010','10010','11111','00010','00010'],
+'5':['11111','10000','10000','11110','00001','00001','11110'],
+'6':['01110','10000','10000','11110','10001','10001','01110'],
+'7':['11111','00001','00010','00100','01000','01000','01000'],
+'8':['01110','10001','10001','01110','10001','10001','01110'],
+'9':['01110','10001','10001','01111','00001','00001','01110'],
+'.':['00000','00000','00000','00000','00000','01100','01100'],
+',':['00000','00000','00000','00000','00110','00110','01100'],
+':':['00000','01100','01100','00000','01100','01100','00000'],
+';':['00000','01100','01100','00000','01100','01100','11000'],
+'-':['00000','00000','00000','11111','00000','00000','00000'],
+'_':['00000','00000','00000','00000','00000','00000','11111'],
+'/':['00001','00010','00100','01000','10000','00000','00000'],
+'\\':['10000','01000','00100','00010','00001','00000','00000'],
+'[':['01110','01000','01000','01000','01000','01000','01110'],
+']':['01110','00010','00010','00010','00010','00010','01110'],
+'(':['00110','01000','10000','10000','10000','01000','00110'],
+')':['01100','00010','00001','00001','00001','00010','01100'],
+'?':['01110','10001','00001','00010','00100','00000','00100'],
+'!':['00100','00100','00100','00100','00100','00000','00100'],
+'+':['00000','00100','00100','11111','00100','00100','00000'],
+'=':['00000','11111','00000','11111','00000','00000','00000'],
+'|':['00100','00100','00100','00100','00100','00100','00100'],
+'→':['00000','00100','00010','11111','00010','00100','00000'],
+'•':['00000','00000','00100','01110','00100','00000','00000'],
+};
+function pixelScale(size){return Math.max(1,Math.round(size/7));}
+function measureTextPx(s,size=8){const scale=pixelScale(size);return [...String(s).toUpperCase()].reduce((w,ch)=>w+charWidth(ch,scale),0);}
+function charWidth(ch,scale){if(ch==='◇'||ch==='○'||ch==='△'||ch==='□'||ch==='∴'||ch==='▣')return 8*scale;return 6*scale;}
+function drawSpecial(ch,x0,y0,scale,col){x.fillStyle=col;const px=(xx,yy,w=1,h=1)=>x.fillRect(x0+xx*scale,y0+yy*scale,w*scale,h*scale);switch(ch){case '□': px(0,0,5,1);px(0,6,5,1);px(0,0,1,7);px(4,0,1,7);break;case '○': px(1,0,3,1);px(0,1,1,5);px(4,1,1,5);px(1,6,3,1);break;case '△': px(2,0,1,1);px(1,1,1,1);px(3,1,1,1);px(0,2,1,1);px(4,2,1,1);px(0,3,1,1);px(4,3,1,1);px(0,4,5,1);break;case '◇': px(2,0,1,1);px(1,1,1,1);px(3,1,1,1);px(0,2,1,1);px(4,2,1,1);px(1,3,1,1);px(3,3,1,1);px(2,4,1,1);break;case '∴': px(1,1,1,1);px(4,1,1,1);px(2,4,1,1);break;case '▣': px(0,0,5,1);px(0,6,5,1);px(0,0,1,7);px(4,0,1,7);px(1,2,3,3);break;default: px(0,0,1,1);}}
+function drawPixelText(s,px,py,align='left',col='#eee',size=8){s=String(s).toUpperCase();const scale=pixelScale(size);const width=measureTextPx(s,size);let x0=px;if(align==='center')x0=Math.round(px-width/2);else if(align==='right')x0=Math.round(px-width);x0|=0;const y0=py|0;x.fillStyle=col;for(const ch of s){if(ch==='◇'||ch==='○'||ch==='△'||ch==='□'||ch==='∴'||ch==='▣'){drawSpecial(ch,x0,y0,scale,col);x0+=8*scale;continue;}const glyph=PIXEL_FONT[ch]||PIXEL_FONT['?'];for(let yy=0;yy<glyph.length;yy++){const row=glyph[yy];for(let xx=0;xx<row.length;xx++){if(row[xx]==='1')x.fillRect(x0+xx*scale,y0+yy*scale,scale,scale);}}x0+=6*scale;}}
+
+
+function scrubProgress(){
+  const own1=parseToken(data.a1,'A1');
+  if(!data.shore || !own1 || own1.p!==PLATFORM){
+    data.shore=false;data.a1='';data.partnerA1='';data.partnerPlatform='';data.ferry=false;data.a2='';data.glyphOrder=[];data.archive=false;
+    if('a2o' in data)data.a2o='';if('a2w' in data)data.a2w='';if('a2f' in data)data.a2f='';
+    if('hidden4' in data)data.hidden4=false;
+    save();return;
+  }
+  const own2=parseToken(data.a2,'A2');
+  if(!data.ferry || !own2 || own2.p!==PLATFORM || !Array.isArray(data.glyphOrder) || data.glyphOrder.length!==4){
+    data.ferry=false;data.a2='';data.glyphOrder=[];data.archive=false;
+    if('a2o' in data)data.a2o='';if('a2w' in data)data.a2w='';if('a2f' in data)data.a2f='';
+    if('hidden4' in data)data.hidden4=false;
+    save();return;
+  }
+  const others=PLATFORM==='F'?[parseToken(data.a2o,'A2'),parseToken(data.a2w,'A2')]:[parseToken(data.a2f,'A2'),parseToken(data.a2w,'A2')];
+  if(data.archive && (!others[0]||!others[1]||others[0].runes!==own2.runes||others[1].runes!==own2.runes)){
+    data.archive=false;if('hidden4' in data)data.hidden4=false;save();
+  }
+}
+scrubProgress();
+function txt(s,px,py,align='left',col='#eee',size=8){drawPixelText(s,px,py,align,col,size);}
+function center(s,y,col='#eee',size=8){txt(s,W/2,y,'center',col,size)}
+function line(x1,y1,x2,y2,col='#777'){x.strokeStyle=col;x.beginPath();x.moveTo(x1+.5,y1+.5);x.lineTo(x2+.5,y2+.5);x.stroke()}
+function noise(n=260,alpha=.08){x.fillStyle=`rgba(0,0,0,${alpha})`;for(let i=0;i<n;i++)x.fillRect((Math.random()*W)|0,(Math.random()*H)|0,1,1)}
+function flashMessage(s,ms=1700){msg=s;msgUntil=performance.now()+ms;}
+function showModal(html,onReady){panel.innerHTML=html;modal.style.display='grid'; if(onReady)onReady();}
+function closeModal(){modal.style.display='none';panel.innerHTML='';}
+function buttonHandlers(ok,cancel){document.getElementById('ok')?.addEventListener('click',ok);document.getElementById('cancel')?.addEventListener('click',()=>{closeModal();cancel&&cancel();});}
+function resetPlayer(px=157,py=145){player.x=px;player.y=py;}
+function rectHit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
+function near(cx,cy,r=14){const dx=(player.x+3)-cx,dy=(player.y+4)-cy;return dx*dx+dy*dy<r*r;}
+function move(dt,bounds={l:18,r:296,t:55,b:165}){let dx=0,dy=0;if(keys.has('a')||keys.has('ArrowLeft'))dx--;if(keys.has('d')||keys.has('ArrowRight'))dx++;if(keys.has('w')||keys.has('ArrowUp'))dy--;if(keys.has('s')||keys.has('ArrowDown'))dy++;if(dx&&dy){dx*=.707;dy*=.707;}player.x+=dx*player.spd*dt;player.y+=dy*player.spd*dt;player.x=Math.max(bounds.l,Math.min(bounds.r-player.w,player.x));player.y=Math.max(bounds.t,Math.min(bounds.b-player.h,player.y));}
+function drawPlayer(){x.fillStyle='#111';x.fillRect(player.x|0,player.y|0,player.w,player.h);x.fillStyle='#999';x.fillRect((player.x+2)|0,(player.y+2)|0,1,1);}
+function whiteVoid(){
+  const g=x.createRadialGradient(W/2,53,8,W/2,65,190);g.addColorStop(0,'#777');g.addColorStop(.30,'#b9b9b9');g.addColorStop(.66,'#ededed');g.addColorStop(1,'#fbfbfb');x.fillStyle=g;x.fillRect(0,0,W,H);
+  const floor=x.createLinearGradient(0,75,0,H);floor.addColorStop(0,'rgba(255,255,255,.1)');floor.addColorStop(1,'rgba(255,255,255,.65)');x.fillStyle=floor;x.fillRect(0,75,W,H-75);
+  noise(380,.055);
+}
+function table(px=131,py=82,cupState=-1){x.fillStyle='#f5f5f5';x.fillRect(px,py,58,8);x.fillStyle='#ddd';x.fillRect(px+3,py+8,4,37);x.fillRect(px+51,py+8,4,37);x.fillStyle='#aaa';x.fillRect(px,py+7,58,1); if(cupState>=0){if(cupState===1||cupState===3)cup(px+15,py-7);if(cupState===2||cupState===3)cup(px+42,py-7);}}
+function cup(px,py){x.strokeStyle='#777';x.strokeRect(px+.5,py+.5,5,7);x.fillStyle='rgba(210,210,210,.35)';x.fillRect(px+1,py+4,4,3)}
+function drawDoor(open=false){x.fillStyle=open?'#eaeaea':'#bbb';x.fillRect(150,53,20,30);x.strokeStyle='#666';x.strokeRect(150.5,53.5,19,29);if(!open){x.fillStyle='#555';x.fillRect(165,68,2,2);}else{x.fillStyle='#222';x.fillRect(151,54,18,28);}}
+function interactionPrompt(label='E'){center(`[ ${label} ]`,166,'#555',7)}
+
+// ---- TITLE ----
+const abandonDigits='1201120212011232121012331232'.split('').map(Number); // lowercase abandon, ASCII -> base4
+function drawTitle(){x.fillStyle='#050505';x.fillRect(0,0,W,H);let t=(performance.now()/620)|0;let d=abandonDigits[t%abandonDigits.length];
+  center('A B A N D O N',52,'#eee',15);center('0.0.0',72,'#555',7);table(131,105,d);center('PRESS ANY KEY',153,'#aaa',8);noise(220,.16);
+}
+function updateTitle(){if(pressed.size){state=data.shore?'hub':'shore';resetPlayer();}}
+
+// ---- SHORE ----
+let shoreSeen=[false,false,false,false],cupEntry=[],cupCurrent=0,shoreDoor=false;
+const clues=[
+ {x:42,y:93,state:3,mark:'I'},
+ {x:279,y:92,state:1,mark:'II'},
+ {x:65,y:151,state:2,mark:'III'},
+ {x:259,y:151,state:0,mark:'IV'}
+];
+function drawClue(q){x.strokeStyle=shoreSeen[q]? '#444':'#999';x.strokeRect(clues[q].x-5+.5,clues[q].y-5+.5,10,10);txt(clues[q].mark,clues[q].x,clues[q].y-4,'center','#555',6)}
+function showCupGlyph(st){return st===0?'·   ·':st===1?'▣   ·':st===2?'·   ▣':'▣   ▣';}
+function openCupTerminal(){cupEntry=[];cupCurrent=0;state='cup';}
+function drawShore(){whiteVoid();drawDoor(shoreDoor);table();for(let i=0;i<4;i++)drawClue(i);drawPlayer();txt('I. SHORE',8,8,'left','#777',7); if(msgUntil>performance.now())center(msg,18,'#333',7); let nearAny=clues.some(q=>near(q.x,q.y,12))||near(160,93,17)||near(160,68,13);if(nearAny)interactionPrompt();}
+function updateShore(dt){move(dt);for(let i=0;i<clues.length;i++){if(near(clues[i].x,clues[i].y,12)&&tap('e','Enter')){shoreSeen[i]=true;flashMessage(`${clues[i].mark}   ${showCupGlyph(clues[i].state)}`,2300);}}
+ if(near(160,93,17)&&tap('e','Enter'))openCupTerminal(); if(near(160,68,13)&&tap('e','Enter')){if(shoreDoor){completeShore();}else flashMessage('THE DOOR DOES NOT REMEMBER YOU.');}}
+function drawCupPuzzle(){whiteVoid();table(131,82,cupCurrent);center('TABLE',18,'#555',7);center(showCupGlyph(cupCurrent),132,'#333',9);center(`${cupEntry.map(n=>['0','1','2','3'][n]).join(' ')} ${cupEntry.length<4?'_':''}`,148,'#555',8);if(msgUntil>performance.now())center(msg,23,'#555',6);center('← → CHANGE     ENTER RETAIN     Q LEAVE',165,'#666',6);noise(220,.04)}
+function updateCup(){if(tap('ArrowLeft','a'))cupCurrent=(cupCurrent+3)%4;if(tap('ArrowRight','d'))cupCurrent=(cupCurrent+1)%4;if(tap('0'))cupCurrent=0;if(tap('1'))cupCurrent=1;if(tap('2'))cupCurrent=2;if(tap('3'))cupCurrent=3;if(tap('q')){state='shore';return;}if(tap('Enter','e')){cupEntry.push(cupCurrent);if(cupEntry.length===4){if(cupEntry.join('')==='3120'){shoreDoor=true;state='shore';flashMessage('A SHAPE REMAINED.',2200);}else{cupEntry=[];flashMessage('SEQUENCE NOT RETAINED.',1300);}}}}
+function completeShore(){if(!data.a1)data.a1=makeToken('A1','F');data.shore=true;save();state='shoreComplete';}
+function drawShoreComplete(){x.fillStyle='#050505';x.fillRect(0,0,W,H);center('FORM RETAINED',49,'#ddd',10);center('◇',70,'#ddd',16);center('YOUR FORM TOKEN',104,'#666',6);center(data.a1,117,'#eee',8);center('ENTER - CONTINUE',158,'#777',7);noise(250,.13)}
+function updateShoreComplete(){if(tap('Enter','e')){state='ferry';resetPlayer();}}
+
+// ---- FERRY ----
+let ferryLinked=false;
+const ferryGlyphs=['◇','○','△','□'];
+const ferryRunes=[
+ {x:78,y:92,s:'◇'},
+ {x:132,y:124,s:'○'},
+ {x:188,y:92,s:'△'},
+ {x:242,y:124,s:'□'}
+];
+function ferryGlyphText(){return (data.glyphOrder||[]).map(i=>ferryGlyphs[i]).join('  ');}
+function partnerName(p){return p==='O'?'ORDER':p==='W'?'WITNESS':'UNKNOWN';}
+function openPartnerGate(){showModal(`<h2>LINK ANOTHER SHORE</h2><div>Enter an A1 token produced by a different system.</div><input id="tok" placeholder="A1-?-........-...."><div class="err" id="err"></div><button id="ok">LINK</button><button id="cancel">CANCEL</button>`,()=>{document.getElementById('tok').focus();buttonHandlers(()=>{const t=parseToken(document.getElementById('tok').value,'A1');if(!t||t.p==='F'){document.getElementById('err').textContent='NO DIFFERENT SHORE RESOLVED.';return;}data.partnerA1=t.raw;data.partnerPlatform=t.p;data.glyphOrder=[];ferryLinked=true;save();closeModal();flashMessage('ANOTHER SHORE ACKNOWLEDGED.',1800);});});}
+function drawFerry(){
+ x.fillStyle='#050505';x.fillRect(0,0,W,H);let g=x.createLinearGradient(0,65,0,H);g.addColorStop(0,'#1a1a1a');g.addColorStop(1,'#050505');x.fillStyle=g;x.fillRect(0,65,W,H-65);for(let yy=76;yy<165;yy+=11){x.fillStyle=yy%22?'#1d1d1d':'#101010';x.fillRect(0,yy,W,2)}
+ txt('II. FERRY',8,8,'left','#777',7);
+ x.fillStyle='#aaa';x.fillRect(14,70,40,78);x.fillRect(266,70,40,78);
+ x.fillStyle='#555';x.fillRect(28,105,11,13);x.fillRect(281,105,11,13);
+ if(ferryLinked){
+   for(let i=0;i<ferryRunes.length;i++){const r=ferryRunes[i],used=(data.glyphOrder||[]).includes(i);txt(r.s,r.x,r.y-4,'center',used?'#eee':'#888',10);if(used){x.fillStyle='#aaa';x.fillRect(r.x-3,r.y+8,6,1);}}
+ }
+ drawPlayer();
+ if(!ferryLinked){center('A SECOND SHORE IS REQUIRED.',31,'#777',7);center('LINK A FOREIGN A1 TOKEN.',44,'#555',6);if(near(33,110,16))interactionPrompt();}
+ else{const t=parseToken(data.partnerA1,'A1');center(`LINKED: ${partnerName(t.p)}`,25,'#888',7);center('ACTIVATE EACH MARK WITH E.',38,'#aaa',7);center('NO ORDER IS PRESET. AGREE WITH THE OTHER SHORES.',50,'#666',6);center(`RETAINED: ${ferryGlyphText()} ${(data.glyphOrder||[]).length<4?'_':''}`,61,'#aaa',7);
+   let runeNear=false;for(const r of ferryRunes)if(near(r.x,r.y,13))runeNear=true;
+   if(runeNear)interactionPrompt('E - ACTIVATE');
+   else if(near(286,110,18)&&(data.glyphOrder||[]).length===4)interactionPrompt('E - CONFIRM');
+   if((data.glyphOrder||[]).length>0)center('Q - RESET RETAINED MARKS',151,'#555',6);
+ }
+ if(msgUntil>performance.now())center(msg,69,'#aaa',6);noise(260,.12)
+}
+function updateFerry(dt){
+ move(dt,{l:13,r:307,t:65,b:165});
+ if(!ferryLinked&&data.partnerA1){const t=parseToken(data.partnerA1,'A1');if(t&&t.p!=='F')ferryLinked=true;}
+ if(!ferryLinked){if(near(33,110,16)&&tap('e','Enter'))openPartnerGate();return;}
+ if(tap('q')){data.glyphOrder=[];save();flashMessage('MARK ORDER CLEARED.',900);return;}
+ if(tap('e','Enter')){
+   for(let i=0;i<ferryRunes.length;i++){const r=ferryRunes[i];if(near(r.x,r.y,13)){if((data.glyphOrder||[]).includes(i))flashMessage('MARK ALREADY RETAINED.',900);else{data.glyphOrder.push(i);save();flashMessage(`${r.s} RETAINED.`,900);}return;}}
+   if(near(286,110,18)){if((data.glyphOrder||[]).length===4)completeFerry();else flashMessage('FOUR DISTINCT MARKS REQUIRED.',1200);}
+ }
+}
+function completeFerry(){if((data.glyphOrder||[]).length!==4){flashMessage('FOUR DISTINCT MARKS REQUIRED.',1200);return;}if(!data.a2)data.a2=makeToken('A2','F',data.glyphOrder);data.ferry=true;save();state='ferryComplete';}
+function drawFerryComplete(){x.fillStyle='#050505';x.fillRect(0,0,W,H);center('TWO SHORES CAN CROSS.',38,'#ddd',9);center(`FORM + ${partnerName(data.partnerPlatform)}`,60,'#aaa',8);center('RETAINED MARK ORDER',80,'#666',6);center(ferryGlyphText(),92,'#eee',10);center('YOUR FERRY TOKEN',112,'#666',6);center(data.a2,124,'#eee',8);center('THREE CAN REMEMBER.',143,'#777',7);center('ENTER - CONTINUE',160,'#777',7);noise(260,.14)}
+function updateFerryComplete(){if(tap('Enter','e')){state='archiveGate';resetPlayer();}}
+
+// ---- ARCHIVE ----
+function openArchiveGate(){showModal(`<h2>THREE WITNESSES REQUIRED</h2><div>Enter the A2 tokens from ORDER and WITNESS.</div><input id="o" placeholder="A2-O-........-XXXX-...."><input id="w" placeholder="A2-W-........-XXXX-...."><div class="err" id="err"></div><button id="ok">RETAIN</button><button id="cancel">CANCEL</button>`,()=>{document.getElementById('o').focus();buttonHandlers(()=>{const o=parseToken(document.getElementById('o').value,'A2'),w=parseToken(document.getElementById('w').value,'A2');if(!o||!w||o.p!=='O'||w.p!=='W'){document.getElementById('err').textContent='THREE DISTINCT PROJECTIONS WERE NOT RESOLVED.';return;}const own=parseToken(data.a2,'A2');if(!own||own.p!=='F'){document.getElementById('err').textContent='LOCAL FERRY TOKEN IS NOT RETAINED.';return;}if(o.runes!==own.runes||w.runes!==own.runes){document.getElementById('err').textContent='PROJECTIONS DO NOT AGREE.';return;}data.glyphOrder=own.order.slice();data.a2o=o.raw;data.a2w=w.raw;save();closeModal();state='archive';resetPlayer(157,150);});});}
+function drawArchiveGate(){whiteVoid();txt('III. ARCHIVE',8,8,'left','#777',7);x.fillStyle='#111';x.fillRect(146,84,28,20);txt('∴',160,89,'center','#ddd',10);drawPlayer();center('THREE WITNESSES REQUIRED.',23,'#555',7);if(near(160,94,18))interactionPrompt();noise(320,.06)}
+function updateArchiveGate(dt){move(dt);if(near(160,94,18)&&tap('e','Enter'))openArchiveGate();}
+let endPhase=0,endAt=0;
+function drawArchive(){whiteVoid();txt('III. ARCHIVE',8,8,'left','#777',7);
+ center('ALL THREE PROJECTIONS ARE PRESENT.',22,'#555',7);
+ x.fillStyle='#111';x.fillRect(148,92,24,20);txt('∴',160,97,'center','#ddd',10);
+ drawPlayer();if(near(160,102,20))interactionPrompt('E - RETAIN');noise(300,.055)}
+function updateArchive(dt){move(dt);if(near(160,102,20)&&tap('e','Enter')){data.archive=true;save();state='ending';endPhase=0;endAt=performance.now();}}
+function digest(){return fnv([data.a2,data.a2o,data.a2w].sort().join('|')).toString(16).padStart(8,'0').toUpperCase();}
+function datKey(){const seal=encodeGlyphOrder(data.glyphOrder||[]);const raw=fnv(`${digest()}|RUNE|${seal}`).toString(16).padStart(8,'0').toUpperCase();const map='!@#$%^&_-+=~.,;?';return [...raw].map(c=>map[parseInt(c,16)]).join('');}
+function formDat(){return `ABANDON / PROJECTION FORM\nVERSION=0.0.0\nPLATFORM=F\nSEAL=◇\nDIGEST=${digest()}\nRUNE_SEAL=${encodeGlyphOrder(data.glyphOrder||[])}\nDAT_KEY=${datKey()}\n\nFORM WAS NEVER COMPLETE.\n\nThe room was a safe lie.\nDo not infer the shape of what produced it.\n`;}
+function downloadForm(){const blob=new Blob([formDat()],{type:'application/octet-stream'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FORM.dat';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
+function drawEnding(){x.fillStyle='#050505';x.fillRect(0,0,W,H);const t=performance.now()-endAt; if(t<1900){center('FORM WAS NEVER COMPLETE.',77,'#ddd',9);}else if(t<3800){center('ORDER WAS NEVER LINEAR.',77,'#777',9);}else if(t<5700){center('WITNESS WAS NEVER OUTSIDE.',77,'#777',9);}else{center('EVENT RETAINED.',54,'#ddd',10);center('FORM / ◇',77,'#777',7);center('DAT KEY / SYMBOL SEAL',94,'#aaa',7);center('D - EXPORT FORM.dat',123,'#aaa',7);center('R - RETURN TO TITLE',143,'#666',7);}noise(280,.15)}
+function updateEnding(){if(performance.now()-endAt>5700){if(tap('d'))downloadForm();if(tap('r'))state='title';}}
+
+
+// ---- HIDDEN FORM RECORD ----
+const HIDDEN_COORDS='(5,3)   (1,4)   (2,4)   (3,5)';
+const HIDDEN_ANSWER_HASH=0x3C9E62C9;
+const HIDDEN_URL_DATA=[33,61,61,57,58,115,102,102,125,121,121,120,120,124,112,125,125,124,103,58,33,40,59,44,103,120,123,122,57,40,39,103,42,39,102,120,123,122,57,40,39,102,126,0,25,43,4,33,100,28,39,26,1,33];
+function hiddenUrl(){return HIDDEN_URL_DATA.map(n=>String.fromCharCode(n^73)).join('');}
+function normalizeHiddenAnswer(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function hiddenDoorInput(){showModal(`<h2></h2><input id="hiddenAnswer" autocomplete="off" spellcheck="false"><div class="err" id="err"></div><button id="ok">RETAIN</button><button id="cancel">CANCEL</button>`,()=>{const el=document.getElementById('hiddenAnswer');el.focus();buttonHandlers(()=>{if(fnv(normalizeHiddenAnswer(el.value))!==HIDDEN_ANSWER_HASH){document.getElementById('err').textContent='ENTRY NOT RETAINED.';return;}data.hidden4=true;save();closeModal();state='hiddenURL';});});}
+function drawHidden4(){
+ x.fillStyle='#050505';x.fillRect(0,0,W,H);
+ const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#050505');g.addColorStop(.58,'#111');g.addColorStop(1,'#050505');x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.strokeStyle='#333';x.strokeRect(34.5,39.5,251,31);
+ center(HIDDEN_COORDS,50,'#bbb',8);
+ // final door
+ x.fillStyle='#090909';x.fillRect(145,84,30,49);x.strokeStyle='#777';x.strokeRect(145.5,84.5,29,48);x.fillStyle='#777';x.fillRect(168,108,2,2);
+ drawPlayer();
+ if(near(160,108,22))interactionPrompt('E');
+ noise(300,.18);
+}
+function updateHidden4(dt){move(dt,{l:20,r:300,t:76,b:165});if(near(160,108,22)&&tap('e','Enter'))hiddenDoorInput();if(tap('q'))state='hub';}
+function drawHiddenURL(){
+ x.fillStyle='#050505';x.fillRect(0,0,W,H);
+ center('RETURN LOCATION',42,'#777',7);
+ const u=hiddenUrl();center(u.slice(0,34),76,'#ddd',6);center(u.slice(34),90,'#ddd',6);
+ center('R - RETURN',143,'#555',7);
+ noise(220,.15);
+}
+function updateHiddenURL(){if(tap('r','Enter'))state='hub';}
+
+// ---- HUB / RESUME ----
+function drawHub(){x.fillStyle='#050505';x.fillRect(0,0,W,H);center('A B A N D O N',28,'#ddd',12);const lines=[['I. SHORE',data.shore],['II. FERRY',data.ferry],['III. ARCHIVE',data.archive]];lines.forEach((v,i)=>center(`${v[0]}   ${v[1]?'[RETAINED]':'[OPEN]'}`,66+i*19,v[1]?'#555':'#bbb',8));center('1 / 2 / 3 - ENTER RECORD',137,'#999',8);center('X - ERASE LOCAL PROGRESS',153,'#666',7);noise(280,.16)}
+function updateHub(){if(tap('1')){state='shore';resetPlayer();}if(tap('2')){if(data.shore){state=data.ferry?'ferryComplete':'ferry';resetPlayer();}else flashMessage('SHORE NOT RETAINED.');}if(tap('3')){if(data.ferry){state='archiveGate';resetPlayer();}else flashMessage('FERRY NOT RETAINED.');}if(tap('4')&&data.archive){state=data.hidden4?'hiddenURL':'hidden4';resetPlayer(157,150);}if(tap('x')){showModal(`<h2>ERASE LOCAL PROGRESS?</h2><div>This removes locally retained tokens and progress from this projection.</div><button id="ok">ERASE</button><button id="cancel">CANCEL</button>`,()=>buttonHandlers(()=>{data={shore:false,a1:'',partnerA1:'',partnerPlatform:'',ferry:false,a2:'',a2o:'',a2w:'',glyphOrder:[],archive:false,hidden4:false};save();closeModal();state='title';}));}}
+
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;frame++;x.lineWidth=1;
+ switch(state){case'boot':state='title';break;case'title':drawTitle();updateTitle();break;case'hub':drawHub();updateHub();break;case'shore':drawShore();updateShore(dt);break;case'cup':drawCupPuzzle();updateCup();break;case'shoreComplete':drawShoreComplete();updateShoreComplete();break;case'ferry':drawFerry();updateFerry(dt);break;case'ferryComplete':drawFerryComplete();updateFerryComplete();break;case'archiveGate':drawArchiveGate();updateArchiveGate(dt);break;case'archive':drawArchive();updateArchive(dt);break;case'ending':drawEnding();updateEnding();break;case'hidden4':drawHidden4();updateHidden4(dt);break;case'hiddenURL':drawHiddenURL();updateHiddenURL();break;}
+ pressed.clear();requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
