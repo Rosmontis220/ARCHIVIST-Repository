@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARCHIVIST // REPOSITORY</title>
+</head>
+<body>
+  <p id="message">正在寻找档案页面……</p>
+  <script>
+    (() => {
+      const path = location.pathname.replace(/\\/g, '/');
+      const prefix = path.replace(/\/[^/]*$/, '');
+      const base = prefix ? `${prefix}/` : './';
+      location.replace(`${base}index.html`);
+    })();
+  </script>
+</body>
+</html>
