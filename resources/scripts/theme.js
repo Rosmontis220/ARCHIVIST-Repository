@@ -31,7 +31,7 @@
       if (icon) icon.textContent = ICONS[theme] || ICONS.dark;
       if (toggle) toggle.setAttribute('aria-label', '切换主题（当前：' + (NAMES[theme] || theme) + '）');
       if (persist) {
-        try { localStorage.setItem('theme', theme); } catch (e) { /* storage unavailable */ }
+        try { localStorage.setItem('theme-v2', theme); } catch (e) { /* storage unavailable */ }
       }
       applyTrack(theme);
     };
