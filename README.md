@@ -16,7 +16,7 @@ ARCHIVIST-Repository/
 ├── viewer.html         # 归档网页 iframe 外壳
 ├── 404.html            # 统一回首页
 ├── .nojekyll
-├── archive/            # 归档页面与游戏网页版（待入库）
+├── archive/            # 归档页面与游戏网页版（已接入 REVIEW / TRADE 网页版）
 └── resources/
     ├── fonts/          # 4 份子集化 woff2（沿用 SF 字符集，内容定稿后需重新子集化）
     ├── music/          # Soul Sanctum.mp3（暗）/ Whispering Vaults.mp3（亮），随主题换曲

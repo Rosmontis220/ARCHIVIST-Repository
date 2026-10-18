@@ -7,5 +7,9 @@
 - 静态网页：`archive/<系列>/<版本>/index.html`
 - Godot 网页版：`archive/<游戏>-web/`（整个目录拷入，含 index.html / .js / .wasm / .pck）
 - viewer 白名单：`archive/**/*.html`（见 `resources/scripts/viewer.js`）
+- **游戏页（路径含 `-web/`）不注入悬浮返回按钮**：退出键回首页是通过游戏壳 `index.html` 里 `GODOT_CONFIG` 的 `onExit` 实现的——游戏内退出时把父页面导航回档案库首页。重新导出游戏后需要给新壳补上这个 `onExit`（见任一现有 `-web/index.html` 第 114 行）
 
-当前为空，等待入库。
+当前内容：
+
+- `review-web/` —— REVIEW 网页版（54.6MB）
+- `trade-web/` —— TRADE 网页版（44.1MB）

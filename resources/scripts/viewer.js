@@ -11,6 +11,9 @@
   const sourceUrl = new URL(path, location.href);
   const scriptsRoot = new URL('resources/scripts/', location.href);
   const returnScript = new URL('archive-return.js', scriptsRoot);
+  /* 网页版游戏（archive/xxx-web/）：退出键由游戏壳自己的 onExit 接管回首页，
+     不注入悬浮返回按钮；其余归档页才注入。 */
+  const isGamePage = /^archive\/[\w-]+-web\//i.test(path);
   const sound = key => window.__archiveSfx?.play(key);
   let injected = false;
   const addScript = (doc, src, attrs = {}) => {
@@ -24,7 +27,9 @@
     const doc = frame.contentDocument;
     if (!doc || !doc.body || doc.documentElement.dataset.archiveEnhanced === '1') return;
     doc.documentElement.dataset.archiveEnhanced = '1';
-    addScript(doc, returnScript.href, { 'data-viewer-home': new URL('index.html', location.href).href });
+    if (!isGamePage) {
+      addScript(doc, returnScript.href, { 'data-viewer-home': new URL('index.html', location.href).href });
+    }
     doc.addEventListener('click', event => {
       const target = event.target?.closest?.('a,button');
       if (target) window.__archiveSfx?.play(target.classList.contains('archive-return') ? 'close' : 'click');
