@@ -19,7 +19,7 @@ ARCHIVIST-Repository/
 ├── archive/            # 归档页面与游戏网页版（待入库）
 └── resources/
     ├── fonts/          # 4 份子集化 woff2（沿用 SF 字符集，内容定稿后需重新子集化）
-    ├── music/          # 空目录，BGM 待入库（音频播放系统已就绪）
+    ├── music/          # Soul Sanctum.mp3（暗）/ Whispering Vaults.mp3（亮），随主题换曲
     ├── sfx/            # UI 音效（legacy 目录 + sources.json）
     ├── images/         # avatar_archivist.jpg（头像）
     └── scripts/        # 站点脚本（见下）
@@ -64,7 +64,6 @@ ARCHIVIST-Repository/
 
 ## 待办
 
-- [ ] BGM：往 `resources/music/` 放两首 mp3，然后把 `index.html` 里 `#archive-music` 的 `src` 与 `theme.js` 的 `TRACKS` 改成实际文件名（暗/亮主题各一首）
 - [ ] 字体子集化：现有 woff2 是 SF 的字符集，首页文案定稿后用 `fonttools` 重新子集化
 - [ ] DOWNLOAD 模块开工时把 `downloads.js` 重新挂回 index.html 底部
 

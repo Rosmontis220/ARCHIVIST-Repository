@@ -2,10 +2,10 @@
     const THEMES = ['dark', 'light'];
     const NAMES = { dark: '暗色', light: '亮色' };
     const ICONS = { dark: '🌙', light: '☀️' };
-    /* 主题曲随主题切换，文件名等 BGM 入库后同步修改 */
+    /* 主题曲随主题切换：暗色 Soul Sanctum / 亮色 Whispering Vaults */
     const TRACKS = {
-      dark: 'resources/music/call-of-iberia.mp3',
-      light: 'resources/music/CONFRONT.mp3'
+      dark: 'resources/music/Soul Sanctum.mp3',
+      light: 'resources/music/Whispering Vaults.mp3'
     };
     const root = document.documentElement;
     const toggle = document.getElementById('theme-toggle');
