@@ -12,7 +12,7 @@
 | 04 | TRADE | 1 RECORD | Godot 网页版（`archive/trade-web/`） |
 | 05 | REVIEW | 1 RECORD | Godot 网页版（`archive/review-web/`） |
 | 06 | DOWNLOAD | 4 RECORDS | WEST_EDGE 备份包 + 3 份 PDF（筛选/搜索/分页见下） |
-| 07 | MISC | 7 LINKS | XIKM 相关入口（B 站 / 抖音 / XIKM 解谜文档 / 迷雾论坛 / QQ 群）+ 小游戏三部曲解谜 + 友链（archive.rosmontis220.top） |
+| 07 | MISC | 8 LINKS | XIKM 相关入口（B 站 / 抖音 / XIKM 解谜文档 / 迷雾论坛 / QQ 群）+ XYEBBS 档案文明账号 + 小游戏三部曲解谜 + 友链（archive.rosmontis220.top） |
 
 - 首页：加载页 → 幕布入场 → hero（ARCHIVIST / REPOSITORY 解密效果）→ 模块滚动
 - viewer.html：`?path=archive/xxx/index.html` 打开归档页面；普通归档页注入「← BACK TO REPOSITORY // 返回存档索引」浮动按钮与点击音效
