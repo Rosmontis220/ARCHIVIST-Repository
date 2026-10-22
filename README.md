@@ -11,7 +11,7 @@
 | 03 | GROUP | 1 RECORD | 撤销版 v0（单文件 HTML，含底部撤销工具条） |
 | 04 | TRADE | 1 RECORD | Godot 网页版（`archive/trade-web/`） |
 | 05 | REVIEW | 1 RECORD | Godot 网页版（`archive/review-web/`） |
-| 06 | DOWNLOAD | 4 RECORDS | WEST_EDGE 备份包 + 3 份 PDF（筛选/搜索/分页见下） |
+| 06 | DOWNLOAD | 5 RECORDS | WEST_EDGE 备份包 + 3 份 PDF + Terminal Cataloguing MC 模组 jar（1.20.1，筛选/搜索/分页见下） |
 | 07 | MISC | 8 LINKS | XIKM 相关入口（B 站 / 抖音 / XIKM 解谜文档 / 迷雾论坛 / QQ 群）+ XYEBBS 档案文明账号 + 小游戏三部曲解谜 + 友链（archive.rosmontis220.top） |
 
 - 首页：加载页 → 幕布入场 → hero（ARCHIVIST / REPOSITORY 解密效果）→ 模块滚动
