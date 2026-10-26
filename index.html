@@ -901,15 +901,19 @@
       color: var(--muted);
     }
 
-    /* 卡片自己作为查询容器：列数由网格自适应决定，卡片窄到放不下常规字号时
-       内部字号自动收紧，所以无论排几列都不需要再加断点。
-       注意容器查询只能命中容器的后代，.entry-card 自身的内边距改不了，
-       要收紧的是标题与底栏这些后代元素。 */
-    .card-grid > .entry-card {
-      container-type: inline-size;
-    }
-
-    @container (max-width: 330px) {
+    /* 卡片窄到放不下常规字号时收紧内部字号。
+       这里原本是 container-type: inline-size + @container (max-width: 330px)，
+       但 Chromium 138（Electron 37，应用内置浏览器就是这一版）有个 bug：
+       卡片自己既是列向 flex 容器、又是尺寸查询容器时，容器内的行盒会被算成
+       0 高，标题、角标、底栏整块塌掉不渲染；而且任何一处强制重排又会恢复正常，
+       所以表现为「部分卡片和文字不显示」，越滚动越玄学。
+       改用视口断点：桌面网格是 auto-fit 自适应，窄轨道（下载区四列约 279px）
+       本来就落在 330px 以内，卡片内容盒比轨道再窄一截，所以桌面端原本也一直在
+       命中这条收紧规则；只有卡片独占整行时（1164px）才用常规字号。
+       换成 ≤860px 的移动端断点后，桌面一律用 22px 的常规字号、移动端轮播
+       （卡片宽 min(76vw, 300px)）才收紧到 17px，
+       顺带去掉了每张卡片一份 containment，也就不用再碰那个 bug。 */
+    @media (max-width: 860px) {
       .card-title {
         font-size: 17px;
       }
@@ -1487,19 +1491,28 @@
       overflow: hidden;
     }
 
-    /* 网格底板：比内容慢半拍，形成纵深 */
-    .module::before {
-      content: "";
-      position: absolute;
-      inset: -90px 0;
-      background-image:
-        linear-gradient(var(--ak-grid) 1px, transparent 1px),
-        linear-gradient(90deg, var(--ak-grid) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none;
-      z-index: 0;
-      transform: translate3d(0, calc(var(--p) * -28px), 0);
-      will-change: transform;
+    /* 信纸底纹：整页一张纸，横线贯穿所有模块。
+       这里原本是挂在每个 .module::before 上的 48px 网格底板，但每个模块各画各的，
+       瓦片原点互不相同，模块交界处必然错位断开；换成纯横线之后断线会更扎眼，
+       所以改成整页共用一张底纹，原点只有一处，交界处天然连续。
+       线条用 repeating-linear-gradient 直接生成，不依赖外部素材，
+       file:// 本地预览与线上表现一致，也不会像整页 SVG 图层那样撑出超大合成层。
+       纸面随内容一起滚（等同真实的一张纸），内容层自身的视差让文字浮在纸上。 */
+    .page {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        var(--ak-rule) 0,
+        var(--ak-rule) 1px,
+        transparent 1px,
+        transparent var(--ak-rule-gap)
+      );
+    }
+
+    /* 打印不需要底纹 */
+    @media print {
+      .page {
+        background-image: none;
+      }
     }
 
     /* 首屏内容整体随滚动上移并淡出，背景层走得更慢 */
@@ -1532,7 +1545,6 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .module::before,
       .module:first-child .hero > *,
       .module .series-head,
       .module .card-grid,
@@ -1545,11 +1557,13 @@
     .module > * { position: relative; z-index: 1; }
 
     html {
-      --ak-grid: rgba(111, 168, 192, 0.048);
+      /* 信纸横线：暗色用蓝灰、亮色用暗红，跟随各自主题 */
+      --ak-rule: rgba(111, 168, 192, 0.10);
+      --ak-rule-gap: 32px;
       --ak-corner: var(--ef-yellow);
     }
     html.light {
-      --ak-grid: rgba(184, 50, 58, 0.05);
+      --ak-rule: rgba(184, 50, 58, 0.11);
     }
 
     
